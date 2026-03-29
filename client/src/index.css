@@ -133,9 +133,7 @@ code {
 }
 
 /* ─── Form Elements ─── */
-input[type="text"],
-input[type="password"],
-input[type="email"],
+input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
   width: 100%;
