@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { api } from '../services/api';
+import GitHubStar from '../components/GitHubStar';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -116,6 +117,8 @@ export default function LandingPage() {
                   <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--green)', animation: 'blink 2s infinite' }} />
                   Online
                 </div>
+                <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+                <GitHubStar compact={true} />
               </div>
             </div>
 

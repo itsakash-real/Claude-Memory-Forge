@@ -1,5 +1,5 @@
 import { useSession } from '../context/SessionContext';
-
+import GitHubStar from './GitHubStar';
 export default function Header() {
   const { currentStep, stepNames } = useSession();
   const totalBars = stepNames.length - 1;
@@ -33,6 +33,9 @@ export default function Header() {
           letterSpacing: '-0.3px', color: 'var(--text)'
         }}>
           Claude <span style={{ color: 'var(--accent)', fontStyle: 'italic', fontFamily: 'var(--font-display)' }}>Memory Forge</span>
+        </div>
+        <div style={{ marginLeft: '6px' }}>
+          <GitHubStar compact={true} />
         </div>
       </div>
 
