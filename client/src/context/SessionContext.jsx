@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
+import { api } from '../services/api';
 
 const SessionContext = createContext(null);
 
@@ -53,11 +54,32 @@ export function SessionProvider({ children }) {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const importProfile = useCallback(async (profileData) => {
+    if (!sessionId) {
+      throw new Error('No active session to import into.');
+    }
+    setLoading(true);
+    setLoadingMessage('Synchronizing profile data with server...');
+    try {
+      for (let i = 0; i < STEP_NAMES.length - 1; i++) {
+        const step = STEP_NAMES[i];
+        if (profileData[step]) {
+          await api.submitAnswer(sessionId, i, profileData[step]);
+        }
+      }
+      setAnswers(profileData);
+    } catch (err) {
+      throw new Error('Failed to import profile: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionId]);
+
   const value = {
     sessionId, setSessionId,
     apiKey, setApiKey,
     currentStep, setCurrentStep,
-    answers, saveAnswer,
+    answers, saveAnswer, importProfile,
     refinedKeys, setRefinedKeys,
     loading, setLoading,
     loadingMessage, setLoadingMessage,

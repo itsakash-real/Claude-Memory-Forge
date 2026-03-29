@@ -5,7 +5,7 @@ import { api } from '../services/api';
 
 export default function ReviewStep() {
   const navigate = useNavigate();
-  const { sessionId, prevStep, setLoading, setError, setPreview, preview } = useSession();
+  const { sessionId, answers, prevStep, setLoading, setError, setPreview, preview } = useSession();
   
   const [loadingPreview, setLoadingPreview] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -47,6 +47,16 @@ export default function ReviewStep() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  function handleExport() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(answers, null, 2));
+    const link = document.createElement('a');
+    link.href = dataStr;
+    link.download = 'memory-forge-profile.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   if (loadingPreview) {
@@ -102,6 +112,9 @@ export default function ReviewStep() {
       <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
         <button className="btn-secondary" onClick={prevStep} disabled={generating}>
           ← Back
+        </button>
+        <button className="btn-secondary" onClick={handleExport} disabled={generating}>
+          💾 Save Profile
         </button>
         <button className="btn-download" onClick={handleGenerate} disabled={generating}>
           {generating ? 'Downloading...' : `Download ZIP (${preview?.totalFiles || 0} files)`}

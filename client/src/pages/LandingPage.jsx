@@ -15,7 +15,22 @@ export default function LandingPage() {
   const [focused, setFocused] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    const saved = localStorage.getItem('forge_api_key');
+    if (saved) {
+      try {
+        const { key, expires } = JSON.parse(saved);
+        if (Date.now() < expires) {
+          setKeyInput(key);
+        } else {
+          localStorage.removeItem('forge_api_key');
+        }
+      } catch (e) {
+        // malformed
+      }
+    }
+  }, []);
 
   async function handleValidateAndStart() {
     if (!keyInput.trim()) {
@@ -34,6 +49,13 @@ export default function LandingPage() {
       }
       setKeyValid(true);
       setApiKey(keyInput.trim());
+      
+      // Save to localStorage for 24 hours to prevent re-typing
+      localStorage.setItem('forge_api_key', JSON.stringify({
+        key: keyInput.trim(),
+        expires: Date.now() + 24 * 60 * 60 * 1000
+      }));
+
       const session = await api.startSession(keyInput.trim());
       setSessionId(session.sessionId);
       setTimeout(() => navigate('/wizard'), 600);
