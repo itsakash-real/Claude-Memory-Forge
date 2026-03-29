@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { api } from '../services/api';
 import GitHubStar from '../components/GitHubStar';
+import TwitterButton from '../components/TwitterButton';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -118,7 +119,10 @@ export default function LandingPage() {
                   Online
                 </div>
                 <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
-                <GitHubStar compact={true} />
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <TwitterButton compact={true} />
+                  <GitHubStar compact={true} />
+                </div>
               </div>
             </div>
 

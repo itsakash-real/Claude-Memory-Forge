@@ -1,5 +1,6 @@
 import { useSession } from '../context/SessionContext';
 import GitHubStar from './GitHubStar';
+import TwitterButton from './TwitterButton';
 export default function Header() {
   const { currentStep, stepNames } = useSession();
   const totalBars = stepNames.length - 1;
@@ -34,7 +35,8 @@ export default function Header() {
         }}>
           Claude <span style={{ color: 'var(--accent)', fontStyle: 'italic', fontFamily: 'var(--font-display)' }}>Memory Forge</span>
         </div>
-        <div style={{ marginLeft: '6px' }}>
+        <div style={{ marginLeft: '6px', display: 'flex', gap: '6px' }}>
+          <TwitterButton compact={true} />
           <GitHubStar compact={true} />
         </div>
       </div>

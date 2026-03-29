@@ -5,6 +5,8 @@
 **A persistent memory generator for Claude Code.**
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fitsakash-real%2FClaude-Memory-Forge)
+[![Follow on X](https://img.shields.io/twitter/follow/its_akashreal?style=social)](https://x.com/its_akashreal)
+<br/>
 [![React](https://img.shields.io/badge/React-19-000000?style=flat&logo=react&logoColor=61DAFB)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-6-000000?style=flat&logo=vite&logoColor=646CFF)](https://vitejs.dev/)
 [![Express](https://img.shields.io/badge/Express-Serverless-000000?style=flat&logo=express&logoColor=white)](https://expressjs.com/)
