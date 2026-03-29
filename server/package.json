@@ -1,0 +1,27 @@
+{
+  "name": "claudeforge-server",
+  "version": "1.0.0",
+  "description": "ClaudeForge API — .claude/ memory system generator",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
+    "archiver": "^7.0.1",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "uuid": "^11.1.0"
+  },
+  "keywords": [
+    "claude",
+    "memory",
+    "ai"
+  ],
+  "license": "MIT"
+}

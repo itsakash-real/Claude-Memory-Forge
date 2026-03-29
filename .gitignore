@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.zip
+.vercel/
+.DS_Store
+client/dist/
+server/.env
