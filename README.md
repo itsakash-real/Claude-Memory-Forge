@@ -15,7 +15,6 @@
 
 <br />
 
-![App Preview](https://github.com/user-attachments/assets/placeholder-screenshot.png) *(Upload your screenshot here)*
 
 </div>
 
