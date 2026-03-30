@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL || process.env.KV_URL || 'redis://localhost:6379';
 
 // Lazy connection — only created when actually needed
 let _connection = null;
