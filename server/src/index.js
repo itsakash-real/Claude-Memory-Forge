@@ -6,6 +6,7 @@ import cors from 'cors';
 import { sessionRoutes } from './routes/sessionRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { rateLimit } from './middleware/rateLimit.js';
+import { getRedis } from './services/redis.js';
 
 const app = express();
 
@@ -33,12 +34,37 @@ app.use('/api', rateLimit);
 // Routes
 app.use('/api', sessionRoutes);
 
-// Health check
+// ── Environment Validation ──────────────────────────────────────
+if (!process.env.GEMINI_KEY_1) {
+  console.error('🚨 CRITICAL: GEMINI_KEY_1 missing from environment variables!');
+  console.error('   Get key: https://aistudio.google.com/apikey');
+  console.error('   Local: Copy server/.env.example → server/.env and add GEMINI_KEY_1');
+  console.error('   Vercel: vercel.com/[project]/settings/env → Add GEMINI_KEY_1');
+  if (process.env.VERCEL === '1') {
+    throw new Error('🚫 Missing GEMINI_KEY_1 environment variable');
+  } else {
+    console.warn('⚠️  Continuing in dev mode without Gemini (will crash on /answer)');
+  }
+}
+
+const redisStatus = getRedis() ? '✅ UPSTASH_REDIS Connected' : '⚠️  Memory fallback - set UPSTASH_REDIS_REST_URL/TOKEN';
+console.log(`[Startup] Gemini ready: ${!!process.env.GEMINI_KEY_1}, Redis: ${redisStatus}`);
+
+// ── Enhanced Health Check ──────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+
+app.get('/api/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    geminiKeys: !!process.env.GEMINI_KEY_1,
+    redis: !!getRedis(),
+    env: process.env.NODE_ENV || 'development',
+    uptime: process.uptime()
+  };
+  res.json(health);
 });
 
 // Error handling

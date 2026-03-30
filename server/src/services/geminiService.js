@@ -20,7 +20,10 @@ let rotationIndex = 0;
 function getApiKeys() {
   const keys = [process.env.GEMINI_KEY_1, process.env.GEMINI_KEY_2].filter(Boolean);
   if (keys.length === 0) {
-    throw new Error('Server misconfiguration: No GEMINI_KEY_1 or GEMINI_KEY_2 found in environment.');
+    const err = new Error('No valid Gemini API keys found (GEMINI_KEY_1/_2 required)');
+    err.name = 'GeminiConfigError';
+    err.code = 'MISSING_KEYS';
+    throw err;
   }
   return keys;
 }
@@ -55,7 +58,7 @@ async function callGemini(prompt) {
         return result.response.text();
       } catch (error) {
         lastError = error;
-        console.warn(`[Gemini] Key[${keyIndex}] attempt ${attempt + 1} failed: ${error.message}`);
+console.warn(`[Gemini] Key[${keyIndex}] attempt ${attempt + 1}/${MAX_RETRIES} failed: ${error.message}`);
       }
     }
 
@@ -67,7 +70,11 @@ async function callGemini(prompt) {
     }
   }
 
-  throw new Error(`All Gemini API keys failed after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`);
+  const err = new Error(`Gemini API failed after ${MAX_RETRIES} attempts with all keys. Last: ${lastError?.message}`);
+    err.name = 'GeminiAPIError';
+    err.code = 'API_FAILURE';
+    err.lastError = lastError?.message;
+    throw err;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -295,7 +302,10 @@ function parseJSON(text) {
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    console.error('Failed to parse Gemini JSON:', cleaned.substring(0, 500));
-    throw new Error('Failed to parse AI response. Please try again.');
+    console.error('Gemini parse fail:', cleaned.substring(0, 500));
+    const err = new Error('Gemini response JSON parse failed - try rephrasing input');
+    err.name = 'GeminiParseError';
+    err.code = 'PARSE_FAILURE';
+    throw err;
   }
 }
