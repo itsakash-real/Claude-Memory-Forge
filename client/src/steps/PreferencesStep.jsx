@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
-import { api } from '../services/api';
 
 export default function PreferencesStep() {
-  const { sessionId, answers, saveAnswer, nextStep, prevStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
 
   const saved = answers.preferences || {};
   const [communicationStyle, setCommunicationStyle] = useState(saved.communicationStyle || '');
@@ -18,18 +17,11 @@ export default function PreferencesStep() {
       communicationStyle, technicalLevel, workflowHabits,
       trackingPreferences, decayPreference, additionalPrefs
     };
-    saveAnswer('preferences', answer);
-
-    setLoading(true);
-    setLoadingMessage('Calibrating your preferences...');
-
     try {
-      await api.submitAnswer(sessionId, 5, answer);
+      await submitAndPoll(5, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 

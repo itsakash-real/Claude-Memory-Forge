@@ -521,4 +521,123 @@ button {
   cursor: pointer;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
   animation: stepIn 0.25s ease forwards;
+
+}
+
+/* ─── Responsive Utilities & Media Queries ─── */
+
+/* Animation keyframes for landing page */
+@keyframes floatGlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 4px 14px rgba(212,165,116,0.3); }
+  50% { box-shadow: 0 4px 24px rgba(212,165,116,0.6); }
+}
+@keyframes stepIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: stepIn 0.4s ease forwards; }
+.delay-1 { animation-delay: 0.05s; opacity: 0; }
+.delay-2 { animation-delay: 0.12s; opacity: 0; }
+.delay-3 { animation-delay: 0.22s; opacity: 0; }
+.delay-4 { animation-delay: 0.32s; opacity: 0; }
+.delay-5 { animation-delay: 0.44s; opacity: 0; }
+.pre-anim { opacity: 1; }
+
+@media (max-width: 768px) {
+  /* ── Typography ── */
+  .step-title,
+  .hero-title {
+    font-size: 32px !important;
+    line-height: 1.15 !important;
+    letter-spacing: -1px !important;
+  }
+  .hero-subtitle {
+    font-size: 16px !important;
+  }
+
+  /* ── Sections ── */
+  .section-padding {
+    padding: 40px 20px !important;
+  }
+
+  /* ── Hero & Landing grid → single column ── */
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+  }
+
+  /* ── Flex layouts → stack ── */
+  .responsive-flex {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  /* ── Wizard Layout ── */
+  .wizard-container {
+    flex-direction: column !important;
+    padding: 24px 16px 80px !important;
+  }
+  .wizard-area {
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* ── Preview Panel ── */
+  .preview-panel {
+    width: 100% !important;
+    position: relative !important;
+    top: 0 !important;
+    height: auto !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border) !important;
+  }
+
+  /* ── Header Nav ── */
+  .hide-mobile {
+    display: none !important;
+  }
+  .header-brand {
+    font-size: 18px !important;
+  }
+
+  /* ── Forms ── */
+  .form-row-2 {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* ── Landing page stat grid → 2 columns ── */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ── Toast ── */
+  .toast-container {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+  }
+  .toast {
+    max-width: none;
+  }
+}
+
+/* ── Extra small (phones under 480px) ── */
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 28px !important;
+    letter-spacing: -0.5px !important;
+  }
+  .hero-subtitle {
+    font-size: 15px !important;
+  }
+  /* Nav "Start for Free" button compact sizing */
+  nav .btn-primary {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+  }
 }

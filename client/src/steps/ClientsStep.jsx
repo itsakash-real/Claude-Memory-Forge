@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
-import { api } from '../services/api';
 
 const EMPTY_CLIENT = { name: '', context: '', industry: '', relationship: '' };
 
 export default function ClientsStep() {
-  const { sessionId, answers, saveAnswer, nextStep, prevStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.clients?.clients || [];
   const [clients, setClients] = useState(saved.length > 0 ? saved : []);
@@ -31,18 +30,11 @@ export default function ClientsStep() {
   async function handleNext() {
     const validClients = clients.filter(c => c.name.trim());
     const answer = { clients: validClients };
-    saveAnswer('clients', answer);
-
-    setLoading(true);
-    setLoadingMessage('Creating client profiles...');
-
     try {
-      await api.submitAnswer(sessionId, 4, answer);
+      await submitAndPoll(4, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 

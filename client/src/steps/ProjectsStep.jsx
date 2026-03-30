@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
-import { api } from '../services/api';
 
 const EMPTY_PROJECT = { name: '', description: '', status: 'active', techStack: '', goals: '' };
 
 export default function ProjectsStep() {
-  const { sessionId, answers, saveAnswer, nextStep, prevStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.projects?.projects || [];
   const [projects, setProjects] = useState(saved.length > 0 ? saved : [{ ...EMPTY_PROJECT }]);
@@ -25,18 +24,11 @@ export default function ProjectsStep() {
   async function handleNext() {
     const validProjects = projects.filter(p => p.name.trim());
     const answer = { projects: validProjects };
-    saveAnswer('projects', answer);
-
-    setLoading(true);
-    setLoadingMessage('Organizing project files...');
-
     try {
-      await api.submitAnswer(sessionId, 2, answer);
+      await submitAndPoll(2, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 

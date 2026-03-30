@@ -44,12 +44,11 @@ class SessionManager {
 
   _key(id) { return `session:${id}`; }
 
-  async create(geminiApiKey) {
+  async create() {
     const store = this._getStore();
     const id = uuidv4();
     const session = {
       id,
-      geminiApiKey,
       currentStep: 0,
       totalSteps: STEP_NAMES.length,
       stepNames: STEP_NAMES,

@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
-import { api } from '../services/api';
 
 const EMPTY_PERSON = { name: '', role: '', company: '', relationship: '', notes: '' };
 
 export default function PeopleStep() {
-  const { sessionId, answers, saveAnswer, nextStep, prevStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.people?.people || [];
   const [people, setPeople] = useState(saved.length > 0 ? saved : [{ ...EMPTY_PERSON }]);
@@ -25,18 +24,11 @@ export default function PeopleStep() {
   async function handleNext() {
     const validPeople = people.filter(p => p.name.trim());
     const answer = { people: validPeople };
-    saveAnswer('people', answer);
-
-    setLoading(true);
-    setLoadingMessage('Building relationship map...');
-
     try {
-      await api.submitAnswer(sessionId, 1, answer);
+      await submitAndPoll(1, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 

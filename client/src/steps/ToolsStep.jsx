@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
-import { api } from '../services/api';
 
 const TOOL_GROUPS = {
   Languages: ['TypeScript', 'JavaScript', 'Python', 'Rust', 'Go', 'Java', 'C++', 'Ruby'],
@@ -11,7 +10,7 @@ const TOOL_GROUPS = {
 };
 
 export default function ToolsStep() {
-  const { sessionId, answers, saveAnswer, nextStep, prevStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
 
   const saved = answers.tools || {};
   const [selectedTools, setSelectedTools] = useState(saved.tools || []);
@@ -34,18 +33,11 @@ export default function ToolsStep() {
 
   async function handleNext() {
     const answer = { tools: selectedTools, ides, toolNotes };
-    saveAnswer('tools', answer);
-
-    setLoading(true);
-    setLoadingMessage('Documenting your toolset...');
-
     try {
-      await api.submitAnswer(sessionId, 3, answer);
+      await submitAndPoll(3, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 

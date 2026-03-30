@@ -1,33 +1,20 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { api } from '../services/api';
+import { api, pollJobUntilDone } from '../services/api';
 
 const SessionContext = createContext(null);
 
 const STEP_NAMES = [
-  'identity',
-  'people',
-  'projects', 
-  'tools',
-  'clients',
-  'preferences',
-  'glossary',
-  'review'
+  'identity', 'people', 'projects', 'tools',
+  'clients', 'preferences', 'glossary', 'review'
 ];
 
 const STEP_LABELS = [
-  'Identity',
-  'People',
-  'Projects',
-  'Tools',
-  'Clients',
-  'Preferences',
-  'Glossary',
-  'Review'
+  'Identity', 'People', 'Projects', 'Tools',
+  'Clients', 'Preferences', 'Glossary', 'Review'
 ];
 
 export function SessionProvider({ children }) {
   const [sessionId, setSessionId] = useState(null);
-  const [apiKey, setApiKey] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [refinedKeys, setRefinedKeys] = useState([]);
@@ -54,17 +41,47 @@ export function SessionProvider({ children }) {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const importProfile = useCallback(async (profileData) => {
-    if (!sessionId) {
-      throw new Error('No active session to import into.');
-    }
+  // Submit an answer: enqueue job → poll until done
+  const submitAndPoll = useCallback(async (stepIndex, answer) => {
+    if (!sessionId) throw new Error('No active session');
     setLoading(true);
-    setLoadingMessage('Synchronizing profile data with server...');
+    setLoadingMessage('Queuing your request...');
+    try {
+      // Enqueue job on the server
+      const { jobId, stepName } = await api.submitAnswer(sessionId, stepIndex, answer);
+
+      setLoadingMessage(`AI is generating your ${stepName} files...`);
+
+      // Poll until the worker finishes
+      await pollJobUntilDone(sessionId, jobId, {
+        intervalMs: 3000,
+        onStateChange: (state) => {
+          if (state === 'active') setLoadingMessage('AI is actively generating your files...');
+          if (state === 'waiting') setLoadingMessage('Job is queued, waiting to start...');
+        }
+      });
+
+      saveAnswer(STEP_NAMES[stepIndex], answer);
+      return { success: true };
+    } catch (err) {
+      throw err;
+    } finally {
+      setLoading(false);
+      setLoadingMessage('');
+    }
+  }, [sessionId, saveAnswer]);
+
+  // Import full profile (bulk submit without API key)
+  const importProfile = useCallback(async (profileData) => {
+    if (!sessionId) throw new Error('No active session to import into.');
+    setLoading(true);
+    setLoadingMessage('Synchronizing profile data...');
     try {
       for (let i = 0; i < STEP_NAMES.length - 1; i++) {
         const step = STEP_NAMES[i];
         if (profileData[step]) {
-          await api.submitAnswer(sessionId, i, profileData[step]);
+          const { jobId } = await api.submitAnswer(sessionId, i, profileData[step]);
+          await pollJobUntilDone(sessionId, jobId, { intervalMs: 3000 });
         }
       }
       setAnswers(profileData);
@@ -77,9 +94,8 @@ export function SessionProvider({ children }) {
 
   const value = {
     sessionId, setSessionId,
-    apiKey, setApiKey,
     currentStep, setCurrentStep,
-    answers, saveAnswer, importProfile,
+    answers, saveAnswer, submitAndPoll, importProfile,
     refinedKeys, setRefinedKeys,
     loading, setLoading,
     loadingMessage, setLoadingMessage,

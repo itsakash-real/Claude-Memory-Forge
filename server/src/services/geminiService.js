@@ -1,44 +1,59 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const MODEL_NAME = 'gemini-2.5-flash-lite';
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
+const RETRY_DELAY = 1500;
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function createGeminiClient(apiKey) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model: MODEL_NAME });
+// ──────────────────────────────────────────────────────────────
+//  HYBRID KEY ROTATION: Round-Robin + Failover
+//  - Starts from a rotating index (load distribution)
+//  - Falls back to next key on any error (reliability)
+// ──────────────────────────────────────────────────────────────
+let rotationIndex = 0;
+
+function getApiKeys() {
+  const keys = [process.env.GEMINI_KEY_1, process.env.GEMINI_KEY_2].filter(Boolean);
+  if (keys.length === 0) {
+    throw new Error('Server misconfiguration: No GEMINI_KEY_1 or GEMINI_KEY_2 found in environment.');
+  }
+  return keys;
 }
 
-async function callGeminiWithRetry(model, prompt, retries = MAX_RETRIES) {
-  for (let i = 0; i < retries; i++) {
+async function callGemini(prompt) {
+  const keys = getApiKeys();
+
+  for (let i = 0; i < keys.length; i++) {
+    // Hybrid: start from the current rotation index, then try the next
+    const keyIndex = (rotationIndex + i) % keys.length;
+    const apiKey = keys[keyIndex];
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
     try {
       const result = await model.generateContent(prompt);
-      const response = result.response;
-      return response.text();
+      // Advance round-robin pointer only on success
+      rotationIndex = (keyIndex + 1) % keys.length;
+      return result.response.text();
     } catch (error) {
-      if (i === retries - 1) {
-        const geminiError = new Error(`Gemini API failed after ${retries} attempts: ${error.message}`);
-        geminiError.name = 'GeminiError';
-        throw geminiError;
+      console.warn(`[Gemini] Key[${keyIndex}] failed: ${error.message}. Rotating to next key...`);
+      // Try next key immediately (no sleep between keys)
+      if (i === keys.length - 1) {
+        // All keys exhausted — backoff and fail
+        throw new Error(`All Gemini API keys failed. Last error: ${error.message}`);
       }
-      console.warn(`⚠️ Gemini attempt ${i + 1} failed, retrying in ${RETRY_DELAY * (i + 1)}ms...`);
-      await sleep(RETRY_DELAY * (i + 1));
     }
   }
 }
 
-// ============================================================
-// STEP-SPECIFIC REFINEMENT PROMPTS
-// ============================================================
+// ──────────────────────────────────────────────────────────────
+//  STEP-SPECIFIC REFINEMENT PROMPTS (no apiKey param - server owns keys)
+// ──────────────────────────────────────────────────────────────
 
-export async function refineIdentity(apiKey, answer) {
-  const model = createGeminiClient(apiKey);
+export async function refineIdentity(answer) {
   const today = new Date().toISOString().split('T')[0];
-  
   const prompt = `You are a technical writing assistant generating Claude Code memory system files.
 Given the following user identity information, generate TWO outputs as JSON:
 
@@ -60,16 +75,12 @@ Generate a JSON response with these exact keys:
 }
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences. No explanation text.`;
-
-  const text = await callGeminiWithRetry(model, prompt);
-  return parseJSON(text);
+  return parseJSON(await callGemini(prompt));
 }
 
-export async function refinePeople(apiKey, answer, existingContext) {
-  const model = createGeminiClient(apiKey);
+export async function refinePeople(answer, existingContext) {
   const today = new Date().toISOString().split('T')[0];
-  
-  const peopleList = answer.people.map(p => 
+  const peopleList = answer.people.map(p =>
     `- ${p.name}: ${p.role} at ${p.company || 'same company'}. Relationship: ${p.relationship || 'Colleague'}. Notes: ${p.notes || 'N/A'}`
   ).join('\n');
 
@@ -89,17 +100,13 @@ Generate a JSON response:
   }
 }
 
-For personFiles, generate one entry per person. Slugify names (e.g., "Sarah Chen" → "sarah-chen").
+For personFiles, generate one entry per person. Slugify names (e.g., "Sarah Chen" to "sarah-chen").
 IMPORTANT: Return ONLY valid JSON. No markdown fences.`;
-
-  const text = await callGeminiWithRetry(model, prompt);
-  return parseJSON(text);
+  return parseJSON(await callGemini(prompt));
 }
 
-export async function refineProjects(apiKey, answer, existingContext) {
-  const model = createGeminiClient(apiKey);
+export async function refineProjects(answer, existingContext) {
   const today = new Date().toISOString().split('T')[0];
-  
   const projectList = answer.projects.map(p =>
     `- ${p.name}: ${p.description}. Status: ${p.status || 'Active'}. Tech: ${p.techStack || 'Not specified'}. Goals: ${p.goals || 'Not specified'}`
   ).join('\n');
@@ -122,15 +129,11 @@ Generate JSON:
 }
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences.`;
-
-  const text = await callGeminiWithRetry(model, prompt);
-  return parseJSON(text);
+  return parseJSON(await callGemini(prompt));
 }
 
-export async function refineTools(apiKey, answer, existingContext) {
-  const model = createGeminiClient(apiKey);
+export async function refineTools(answer, existingContext) {
   const today = new Date().toISOString().split('T')[0];
-
   const prompt = `You are a technical writing assistant for Claude Code memory files.
 
 User: ${existingContext.name}, ${existingContext.role}
@@ -141,23 +144,20 @@ Additional tools context: ${answer.toolNotes || 'None'}
 Generate JSON:
 {
   "toolsTable": "Markdown table for CLAUDE.md ## Tools with columns: Tool | Used For",
-  "toolsFile": "Full content for memory/tools.md with front-matter <!-- verified: ${today} | scope: Daily tools and technology stack | salience: 1.50 | hits: 0 --> and <!-- keywords: tools, software, stack, IDE, ${answer.tools.slice(0,5).join(', ')} --> then sections per tool category (Development, Communication, Productivity, etc.)"
+  "toolsFile": "Full content for memory/tools.md with front-matter <!-- verified: ${today} | scope: Daily tools and technology stack | salience: 1.50 | hits: 0 --> and <!-- keywords: tools, software, stack, IDE, ${answer.tools.slice(0, 5).join(', ')} --> then sections per tool category (Development, Communication, Productivity, etc.)"
 }
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences.`;
-
-  const text = await callGeminiWithRetry(model, prompt);
-  return parseJSON(text);
+  return parseJSON(await callGemini(prompt));
 }
 
-export async function refineClients(apiKey, answer, existingContext) {
-  const model = createGeminiClient(apiKey);
+export async function refineClients(answer, existingContext) {
   const today = new Date().toISOString().split('T')[0];
 
   if (!answer.clients || answer.clients.length === 0) {
     return {
       clientsTable: '| Client | Context |\n|--------|--------|\n| *No clients configured* | — |',
-      clientsFile: `<!-- verified: ${today} | scope: Client relationships and context | salience: 1.00 | hits: 0 -->\n<!-- keywords: clients, customers, accounts -->\n\n# Clients\n\nNo clients configured yet. Add client information as your work evolves.\n`
+      clientsFile: `<!-- verified: ${today} | scope: Client relationships and context | salience: 1.00 | hits: 0 -->\n<!-- keywords: clients, customers, accounts -->\n\n# Clients\n\nNo clients configured yet.\n`
     };
   }
 
@@ -179,14 +179,10 @@ Generate JSON:
 }
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences.`;
-
-  const text = await callGeminiWithRetry(model, prompt);
-  return parseJSON(text);
+  return parseJSON(await callGemini(prompt));
 }
 
-export async function refinePreferences(apiKey, answer, existingContext) {
-  const model = createGeminiClient(apiKey);
-
+export async function refinePreferences(answer, existingContext) {
   const prompt = `You are a technical writing assistant for Claude Code memory files.
 
 User: ${existingContext.name}, ${existingContext.role}
@@ -207,19 +203,16 @@ Generate JSON:
 }
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences.`;
-
-  const text = await callGeminiWithRetry(model, prompt);
-  return parseJSON(text);
+  return parseJSON(await callGemini(prompt));
 }
 
-export async function refineGlossary(apiKey, answer, existingContext) {
-  const model = createGeminiClient(apiKey);
+export async function refineGlossary(answer, existingContext) {
   const today = new Date().toISOString().split('T')[0];
 
   if (!answer.terms || answer.terms.length === 0) {
     return {
       termsTable: '| Term | Meaning |\n|------|--------|\n| *No terms configured* | — |',
-      glossaryFile: `<!-- verified: ${today} | scope: Domain-specific terms and abbreviations | salience: 1.00 | hits: 0 -->\n<!-- keywords: glossary, terms, abbreviations, jargon -->\n\n# Glossary\n\nNo domain-specific terms configured yet. Add terms as they come up in your work.\n`
+      glossaryFile: `<!-- verified: ${today} | scope: Domain-specific terms and abbreviations | salience: 1.00 | hits: 0 -->\n<!-- keywords: glossary, terms, abbreviations, jargon -->\n\n# Glossary\n\nNo terms configured yet.\n`
     };
   }
 
@@ -239,42 +232,22 @@ Generate JSON:
 }
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences.`;
-
-  const text = await callGeminiWithRetry(model, prompt);
-  return parseJSON(text);
+  return parseJSON(await callGemini(prompt));
 }
 
-export async function validateApiKey(apiKey) {
-  try {
-    const model = createGeminiClient(apiKey);
-    const result = await model.generateContent('Say "ok" only.');
-    return { valid: true };
-  } catch (error) {
-    return { valid: false, error: error.message };
-  }
-}
-
-// ============================================================
-// HELPERS
-// ============================================================
-
+// ──────────────────────────────────────────────────────────────
+//  HELPERS
+// ──────────────────────────────────────────────────────────────
 function parseJSON(text) {
-  // Strip markdown code fences if present
   let cleaned = text.trim();
-  if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.slice(7);
-  } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.slice(3);
-  }
-  if (cleaned.endsWith('```')) {
-    cleaned = cleaned.slice(0, -3);
-  }
+  if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+  else if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+  if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
   cleaned = cleaned.trim();
-  
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    console.error('Failed to parse Gemini response as JSON:', cleaned.substring(0, 200));
+    console.error('Failed to parse Gemini JSON:', cleaned.substring(0, 300));
     throw new Error('Failed to parse AI response. Please try again.');
   }
 }

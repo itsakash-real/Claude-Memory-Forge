@@ -127,7 +127,7 @@ export default function PreviewPanel() {
   };
 
   return (
-    <div style={{
+    <div className="preview-panel" style={{
       width: '320px', position: 'sticky', top: '58px',
       height: 'calc(100vh - 58px)', display: 'flex', flexDirection: 'column',
       borderLeft: '1px solid var(--border)', background: 'var(--bg2)'

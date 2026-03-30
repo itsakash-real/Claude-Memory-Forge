@@ -8,12 +8,9 @@ async function request(url, options = {}) {
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    
-    // Handle rate limiting
     if (response.status === 429) {
       throw new Error(data.message || 'Too many requests. Please slow down.');
     }
-    
     throw new Error(data.message || data.error || `Request failed: ${response.status}`);
   }
 
@@ -21,20 +18,23 @@ async function request(url, options = {}) {
 }
 
 export const api = {
-  validateKey: (apiKey) =>
-    request('/validate-key', { method: 'POST', body: JSON.stringify({ apiKey }) }),
-
-  startSession: (apiKey) =>
-    request('/session/start', { method: 'POST', body: JSON.stringify({ apiKey }) }),
+  // No more validateKey or apiKey-based startSession
+  startSession: () =>
+    request('/session/start', { method: 'POST', body: JSON.stringify({}) }),
 
   getStatus: (sessionId) =>
     request(`/session/${sessionId}/status`),
 
+  // Submit answer → get jobId back
   submitAnswer: (sessionId, stepIndex, answer) =>
     request(`/session/${sessionId}/answer`, {
       method: 'POST',
       body: JSON.stringify({ stepIndex, answer })
     }),
+
+  // Poll job status
+  getJobStatus: (sessionId, jobId) =>
+    request(`/session/${sessionId}/job/${jobId}`),
 
   getPreview: (sessionId) =>
     request(`/session/${sessionId}/preview`),
@@ -51,3 +51,25 @@ export const api = {
   getDownloadUrl: (sessionId) =>
     `${API_BASE}/session/${sessionId}/download`
 };
+
+// Helper: polls job status until completed or failed
+export async function pollJobUntilDone(sessionId, jobId, { onStateChange, intervalMs = 3000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      try {
+        const { state, result, failReason } = await api.getJobStatus(sessionId, jobId);
+        if (onStateChange) onStateChange(state);
+
+        if (state === 'completed') return resolve(result);
+        if (state === 'failed') return reject(new Error(failReason || 'Job failed'));
+        if (state === 'not_found') return reject(new Error('Job not found'));
+
+        // Still waiting or active — poll again
+        setTimeout(poll, intervalMs);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    poll();
+  });
+}

@@ -1,10 +1,10 @@
 import { useState, useRef } from 'react';
 import { useSession } from '../context/SessionContext';
-import { api } from '../services/api';
 import { PRESETS } from '../utils/presets';
 
+
 export default function IdentityStep() {
-  const { sessionId, answers, saveAnswer, importProfile, nextStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { sessionId, answers, saveAnswer, submitAndPoll, importProfile, nextStep, setLoading, setLoadingMessage, setError } = useSession();
   
   const saved = answers.identity || {};
   const [name, setName] = useState(saved.name || '');
@@ -63,18 +63,12 @@ export default function IdentityStep() {
     }
 
     const answer = { name, role, company, location, claudeUsage, devLevel, bio };
-    saveAnswer('identity', answer);
-
-    setLoading(true);
-    setLoadingMessage('Crafting identity profile...');
 
     try {
-      await api.submitAnswer(sessionId, 0, answer);
+      await submitAndPoll(0, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 

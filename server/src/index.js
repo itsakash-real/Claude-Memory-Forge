@@ -5,6 +5,14 @@ import { sessionRoutes } from './routes/sessionRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { rateLimit } from './middleware/rateLimit.js';
 
+// Initialize background worker — only in always-on environments (not Vercel Serverless)
+// On Vercel: jobs queue in Redis but need an external worker process
+if (process.env.VERCEL !== '1') {
+  import('./queue/worker.js').catch(err =>
+    console.warn('[Worker] Could not start local worker:', err.message)
+  );
+}
+
 dotenv.config();
 
 const app = express();

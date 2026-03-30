@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
-import { api } from '../services/api';
 
 export default function GlossaryStep() {
-  const { sessionId, answers, saveAnswer, nextStep, prevStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.glossary?.terms || [];
   const [terms, setTerms] = useState(saved.length > 0 ? saved : []);
@@ -24,18 +23,11 @@ export default function GlossaryStep() {
 
   async function handleNext() {
     const answer = { terms };
-    saveAnswer('glossary', answer);
-
-    setLoading(true);
-    setLoadingMessage('Compiling your glossary...');
-
     try {
-      await api.submitAnswer(sessionId, 6, answer);
+      await submitAndPoll(6, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 

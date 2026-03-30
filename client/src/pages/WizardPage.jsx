@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
+import { api } from '../services/api';
 
 import Header from '../components/Header';
 import PreviewPanel from '../components/PreviewPanel';
@@ -21,13 +22,22 @@ const STEP_COMPONENTS = [
 
 export default function WizardPage() {
   const navigate = useNavigate();
-  const { sessionId, currentStep, loading, loadingMessage, error, clearError } = useSession();
+  const { sessionId, setSessionId, currentStep, loading, loadingMessage, error, clearError } = useSession();
 
   useEffect(() => {
-    if (!sessionId) navigate('/');
-  }, [sessionId, navigate]);
+    if (!sessionId) {
+      // Auto-start session if came directly to /wizard
+      api.startSession()
+        .then(s => setSessionId(s.sessionId))
+        .catch(() => navigate('/'));
+    }
+  }, [sessionId, setSessionId, navigate]);
 
-  if (!sessionId) return null;
+  if (!sessionId) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+      <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid var(--border2)', borderTopColor: 'var(--accent)', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
 
   const StepComponent = STEP_COMPONENTS[currentStep];
 
@@ -35,9 +45,9 @@ export default function WizardPage() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', background: 'var(--bg)' }}>
       <Header />
       
-      <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+      <div className="responsive-flex" style={{ display: 'flex', flex: 1, position: 'relative' }}>
         {/* Wizard Area */}
-        <div style={{
+        <div className="wizard-area" style={{
           flex: 1,
           overflowY: 'auto',
           padding: '48px 64px 100px',

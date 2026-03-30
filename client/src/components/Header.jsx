@@ -29,13 +29,13 @@ export default function Header() {
           color: '#1a0f08', fontSize: '13px', fontWeight: 700,
           boxShadow: '0 2px 8px rgba(212,165,116,0.2)'
         }}>⬡</div>
-        <div style={{ 
+        <div className="header-brand" style={{ 
           fontFamily: 'var(--font-display)', fontSize: '20px',
           letterSpacing: '-0.3px', color: 'var(--text)'
         }}>
           Claude <span style={{ color: 'var(--accent)', fontStyle: 'italic', fontFamily: 'var(--font-display)' }}>Memory Forge</span>
         </div>
-        <div style={{ marginLeft: '6px', display: 'flex', gap: '6px' }}>
+        <div className="hide-mobile" style={{ marginLeft: '6px', display: 'flex', gap: '6px' }}>
           <TwitterButton compact={true} />
           <GitHubStar compact={true} />
         </div>
