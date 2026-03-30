@@ -11,7 +11,8 @@ export const PRESETS = {
       editor: 'VS Code',
       term: 'iTerm2 + zsh',
       primaryLanguage: 'JavaScript / TypeScript',
-      tools: 'React, Next.js, Node.js, Vercel, Git'
+      tools: 'React, Next.js, Node.js, Vercel, Git',
+      integrations: ['email', 'calendar', 'slack', 'apple']
     },
     people: {
       people: [
@@ -25,6 +26,7 @@ export const PRESETS = {
     },
     clients: { clients: [] },
     preferences: {
+      wantsDashboard: true,
       preferences: [
         { detail: 'Always use functional components and hooks instead of class components.' },
         { detail: 'Prioritize Tailwind CSS (if installed) or standard CSS Modules for styling.' },
@@ -49,7 +51,8 @@ export const PRESETS = {
       editor: 'Jupyter Notebook / PyCharm',
       term: 'bash',
       primaryLanguage: 'Python, SQL',
-      tools: 'Pandas, NumPy, Scikit-learn, PyTorch, Matplotlib'
+      tools: 'Pandas, NumPy, Scikit-learn, PyTorch, Matplotlib',
+      integrations: ['email', 'calendar']
     },
     people: { people: [] },
     projects: {
@@ -60,6 +63,7 @@ export const PRESETS = {
     },
     clients: { clients: [] },
     preferences: {
+      wantsDashboard: false,
       preferences: [
         { detail: 'Use vectorized operations in Pandas/NumPy instead of loops whenever possible.' },
         { detail: 'Include docstrings format (Google style) for Python functions.' },
@@ -84,7 +88,8 @@ export const PRESETS = {
       editor: 'Vim',
       term: 'bash',
       primaryLanguage: 'Go, Bash',
-      tools: 'Docker, Kubernetes, AWS, Terraform, GitHub Actions'
+      tools: 'Docker, Kubernetes, AWS, Terraform, GitHub Actions',
+      integrations: ['email', 'calendar', 'slack']
     },
     people: { people: [] },
     projects: {
@@ -95,6 +100,7 @@ export const PRESETS = {
     },
     clients: { clients: [] },
     preferences: {
+      wantsDashboard: true,
       preferences: [
         { detail: 'Always enforce least privilege principles in IAM policies or Docker user contexts.' },
         { detail: 'Ensure bash scripts have strict error handling (set -eou pipefail).' },
