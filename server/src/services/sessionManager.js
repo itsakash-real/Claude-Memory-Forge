@@ -6,7 +6,7 @@ const STEP_NAMES = [
   'clients', 'preferences', 'glossary', 'review'
 ];
 
-const SESSION_TTL = 7200; // 2 hours in seconds
+const SESSION_TTL = 86400; // 24 hours in seconds
 
 // ─── In-Memory Fallback (for local dev without Redis) ───
 class MemoryStore {

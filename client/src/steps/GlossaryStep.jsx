@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
 
 export default function GlossaryStep() {
-  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
+  const { answers, saveAnswer, submitStep, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.glossary?.terms || [];
   const [terms, setTerms] = useState(saved.length > 0 ? saved : []);
@@ -24,7 +24,7 @@ export default function GlossaryStep() {
   async function handleNext() {
     const answer = { terms };
     try {
-      await submitAndPoll(6, answer);
+      await submitStep(6, answer);
       nextStep();
     } catch (err) {
       setError(err.message);

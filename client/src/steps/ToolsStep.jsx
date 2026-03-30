@@ -10,7 +10,7 @@ const TOOL_GROUPS = {
 };
 
 export default function ToolsStep() {
-  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
+  const { answers, saveAnswer, submitStep, nextStep, prevStep, setError } = useSession();
 
   const saved = answers.tools || {};
   const [selectedTools, setSelectedTools] = useState(saved.tools || []);
@@ -34,7 +34,7 @@ export default function ToolsStep() {
   async function handleNext() {
     const answer = { tools: selectedTools, ides, toolNotes };
     try {
-      await submitAndPoll(3, answer);
+      await submitStep(3, answer);
       nextStep();
     } catch (err) {
       setError(err.message);

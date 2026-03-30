@@ -2,13 +2,11 @@ import { Router } from 'express';
 import { sessionManager, STEP_NAMES } from '../services/sessionManager.js';
 import { generateZip, getFilePreview } from '../services/zipGenerator.js';
 import { geminiRateLimit } from '../middleware/rateLimit.js';
-import { getQueue } from '../queue/index.js';
+import { processStep } from '../services/geminiService.js';
 
 const router = Router();
-// Get queue lazily so it doesn't connect on import
-const getJobQueue = () => getQueue();
 
-// ── Create Session (no API key required — server owns the keys) ───
+// ── Create Session ───────────────────────────────────────────
 router.post('/session/start', async (req, res, next) => {
   try {
     const session = await sessionManager.create();
@@ -34,7 +32,7 @@ router.get('/session/:id/status', async (req, res, next) => {
   }
 });
 
-// ── Submit Answer → Queues Gemini job → returns jobId ────────
+// ── Submit Answer → Process with Gemini synchronously ────────
 router.post('/session/:id/answer', geminiRateLimit, async (req, res, next) => {
   try {
     const { stepIndex, answer } = req.body;
@@ -51,46 +49,28 @@ router.post('/session/:id/answer', geminiRateLimit, async (req, res, next) => {
 
     // Build context from previous identity answers
     const existingContext = {
-      name: session.answers.identity?.name || 'User',
-      role: session.answers.identity?.role || '',
-      company: session.answers.identity?.company || ''
+      name: session.answers.identity?.name || answer?.name || 'User',
+      role: session.answers.identity?.role || answer?.role || '',
+      company: session.answers.identity?.company || answer?.company || ''
     };
 
-    // Enqueue Gemini job with proper options
-    const job = await getJobQueue().add(
-      `step-${stepName}`,
-      { sessionId: req.params.id, stepName, answer, existingContext },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        timeout: 45000,
-        removeOnComplete: 100,
-        removeOnFail: 200,
-      }
-    );
+    // Process with Gemini synchronously
+    const refinedData = await processStep(stepName, answer, existingContext);
 
-    const progress = await sessionManager.getProgress(req.params.id);
-    res.json({ success: true, stepName, jobId: job.id, ...progress });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ── Job Status Endpoint (frontend polls this) ────────────────
-router.get('/session/:id/job/:jobId', async (req, res, next) => {
-  try {
-    const job = await getJobQueue().getJob(req.params.jobId);
-    if (!job) {
-      return res.status(404).json({ error: 'Job not found', state: 'not_found' });
+    // Store refined sections in the session
+    for (const [key, value] of Object.entries(refinedData)) {
+      await sessionManager.saveRefinedSection(req.params.id, key, value);
     }
 
-    const state = await job.getState();     // waiting | active | completed | failed
-    const progress = job.progress;
-    const result = job.returnvalue;
-    const failReason = job.failedReason;
-
-    res.json({ jobId: job.id, state, progress, result, failReason });
+    const progress = await sessionManager.getProgress(req.params.id);
+    res.json({
+      success: true,
+      stepName,
+      refinedKeys: Object.keys(refinedData),
+      ...progress
+    });
   } catch (error) {
+    console.error(`[Route] Step processing failed:`, error.message);
     next(error);
   }
 });
@@ -149,20 +129,17 @@ router.post('/session/:id/regenerate-step', geminiRateLimit, async (req, res, ne
       company: session.answers.identity?.company || ''
     };
 
-    const job = await getJobQueue().add(
-      `regen-${stepName}`,
-      { sessionId: req.params.id, stepName, answer, existingContext },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        timeout: 45000,
-        removeOnComplete: 100,
-        removeOnFail: 200,
-      }
-    );
+    // Process with Gemini synchronously
+    const refinedData = await processStep(stepName, answer, existingContext);
 
-    res.json({ success: true, stepName, jobId: job.id });
+    // Store refined sections
+    for (const [key, value] of Object.entries(refinedData)) {
+      await sessionManager.saveRefinedSection(req.params.id, key, value);
+    }
+
+    res.json({ success: true, stepName, refinedKeys: Object.keys(refinedData) });
   } catch (error) {
+    console.error(`[Route] Regeneration failed:`, error.message);
     next(error);
   }
 });

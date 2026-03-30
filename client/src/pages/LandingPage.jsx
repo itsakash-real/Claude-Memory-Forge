@@ -163,7 +163,14 @@ export default function LandingPage() {
   async function handleStart() {
     setStarting(true);
     try {
+      const savedId = localStorage.getItem('claudeforge_sessionId');
+      if (savedId) {
+        setSessionId(savedId);
+        navigate('/wizard');
+        return;
+      }
       const session = await api.startSession();
+      localStorage.setItem('claudeforge_sessionId', session.sessionId);
       setSessionId(session.sessionId);
       navigate('/wizard');
     } catch (err) {

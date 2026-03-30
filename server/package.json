@@ -13,11 +13,9 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "archiver": "^7.0.1",
-    "bullmq": "^5.71.1",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
-    "ioredis": "^5.10.1",
     "uuid": "^11.1.0"
   },
   "keywords": [

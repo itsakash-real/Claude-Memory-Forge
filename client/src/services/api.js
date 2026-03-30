@@ -1,40 +1,48 @@
 const API_BASE = '/api';
 
 async function request(url, options = {}) {
-  const response = await fetch(`${API_BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout for Gemini calls
 
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    if (response.status === 429) {
-      throw new Error(data.message || 'Too many requests. Please slow down.');
+  try {
+    const response = await fetch(`${API_BASE}${url}`, {
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      ...options
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 429) {
+        throw new Error(data.message || 'Too many requests. Please slow down.');
+      }
+      throw new Error(data.message || data.error || `Request failed: ${response.status}`);
     }
-    throw new Error(data.message || data.error || `Request failed: ${response.status}`);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. The AI may be under heavy load — please try again.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export const api = {
-  // No more validateKey or apiKey-based startSession
   startSession: () =>
     request('/session/start', { method: 'POST', body: JSON.stringify({}) }),
 
   getStatus: (sessionId) =>
     request(`/session/${sessionId}/status`),
 
-  // Submit answer → get jobId back
+  // Submit answer → Gemini processes synchronously → returns result
   submitAnswer: (sessionId, stepIndex, answer) =>
     request(`/session/${sessionId}/answer`, {
       method: 'POST',
       body: JSON.stringify({ stepIndex, answer })
     }),
-
-  // Poll job status
-  getJobStatus: (sessionId, jobId) =>
-    request(`/session/${sessionId}/job/${jobId}`),
 
   getPreview: (sessionId) =>
     request(`/session/${sessionId}/preview`),
@@ -51,25 +59,3 @@ export const api = {
   getDownloadUrl: (sessionId) =>
     `${API_BASE}/session/${sessionId}/download`
 };
-
-// Helper: polls job status until completed or failed
-export async function pollJobUntilDone(sessionId, jobId, { onStateChange, intervalMs = 3000 } = {}) {
-  return new Promise((resolve, reject) => {
-    const poll = async () => {
-      try {
-        const { state, result, failReason } = await api.getJobStatus(sessionId, jobId);
-        if (onStateChange) onStateChange(state);
-
-        if (state === 'completed') return resolve(result);
-        if (state === 'failed') return reject(new Error(failReason || 'Job failed'));
-        if (state === 'not_found') return reject(new Error('Job not found'));
-
-        // Still waiting or active — poll again
-        setTimeout(poll, intervalMs);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    poll();
-  });
-}

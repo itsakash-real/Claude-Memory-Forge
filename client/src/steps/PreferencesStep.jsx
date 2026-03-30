@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSession } from '../context/SessionContext';
 
 export default function PreferencesStep() {
-  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
+  const { answers, saveAnswer, submitStep, nextStep, prevStep, setError } = useSession();
 
   const saved = answers.preferences || {};
   const [communicationStyle, setCommunicationStyle] = useState(saved.communicationStyle || '');
@@ -18,7 +18,7 @@ export default function PreferencesStep() {
       trackingPreferences, decayPreference, additionalPrefs
     };
     try {
-      await submitAndPoll(5, answer);
+      await submitStep(5, answer);
       nextStep();
     } catch (err) {
       setError(err.message);

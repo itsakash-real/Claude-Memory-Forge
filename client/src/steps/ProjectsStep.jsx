@@ -4,7 +4,7 @@ import { useSession } from '../context/SessionContext';
 const EMPTY_PROJECT = { name: '', description: '', status: 'active', techStack: '', goals: '' };
 
 export default function ProjectsStep() {
-  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
+  const { answers, saveAnswer, submitStep, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.projects?.projects || [];
   const [projects, setProjects] = useState(saved.length > 0 ? saved : [{ ...EMPTY_PROJECT }]);
@@ -25,7 +25,7 @@ export default function ProjectsStep() {
     const validProjects = projects.filter(p => p.name.trim());
     const answer = { projects: validProjects };
     try {
-      await submitAndPoll(2, answer);
+      await submitStep(2, answer);
       nextStep();
     } catch (err) {
       setError(err.message);

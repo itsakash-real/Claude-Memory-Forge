@@ -1,7 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL_NAME = 'gemini-2.5-flash-lite';
-const RETRY_DELAY = 1500;
+const MODEL_NAME = 'gemini-flash-latest';
+const MAX_RETRIES = 3;
+const BASE_DELAY = 1500;
+const CALL_TIMEOUT = 30000; // 30 seconds
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -11,6 +13,7 @@ async function sleep(ms) {
 //  HYBRID KEY ROTATION: Round-Robin + Failover
 //  - Starts from a rotating index (load distribution)
 //  - Falls back to next key on any error (reliability)
+//  - Exponential backoff between full rotation attempts
 // ──────────────────────────────────────────────────────────────
 let rotationIndex = 0;
 
@@ -22,34 +25,53 @@ function getApiKeys() {
   return keys;
 }
 
+async function callWithTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Gemini API call timed out after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+}
+
 async function callGemini(prompt) {
   const keys = getApiKeys();
+  let lastError = null;
 
-  for (let i = 0; i < keys.length; i++) {
-    // Hybrid: start from the current rotation index, then try the next
-    const keyIndex = (rotationIndex + i) % keys.length;
-    const apiKey = keys[keyIndex];
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    for (let i = 0; i < keys.length; i++) {
+      const keyIndex = (rotationIndex + i) % keys.length;
+      const apiKey = keys[keyIndex];
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-    try {
-      const result = await model.generateContent(prompt);
-      // Advance round-robin pointer only on success
-      rotationIndex = (keyIndex + 1) % keys.length;
-      return result.response.text();
-    } catch (error) {
-      console.warn(`[Gemini] Key[${keyIndex}] failed: ${error.message}. Rotating to next key...`);
-      // Try next key immediately (no sleep between keys)
-      if (i === keys.length - 1) {
-        // All keys exhausted — backoff and fail
-        throw new Error(`All Gemini API keys failed. Last error: ${error.message}`);
+      try {
+        const result = await callWithTimeout(
+          model.generateContent(prompt),
+          CALL_TIMEOUT
+        );
+        // Advance round-robin pointer only on success
+        rotationIndex = (keyIndex + 1) % keys.length;
+        return result.response.text();
+      } catch (error) {
+        lastError = error;
+        console.warn(`[Gemini] Key[${keyIndex}] attempt ${attempt + 1} failed: ${error.message}`);
       }
     }
+
+    // All keys failed this attempt — exponential backoff before next attempt
+    if (attempt < MAX_RETRIES - 1) {
+      const delay = BASE_DELAY * Math.pow(2, attempt);
+      console.warn(`[Gemini] All keys failed attempt ${attempt + 1}. Retrying in ${delay}ms...`);
+      await sleep(delay);
+    }
   }
+
+  throw new Error(`All Gemini API keys failed after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`);
 }
 
 // ──────────────────────────────────────────────────────────────
-//  STEP-SPECIFIC REFINEMENT PROMPTS (no apiKey param - server owns keys)
+//  STEP-SPECIFIC REFINEMENT PROMPTS
 // ──────────────────────────────────────────────────────────────
 
 export async function refineIdentity(answer) {
@@ -236,6 +258,32 @@ IMPORTANT: Return ONLY valid JSON. No markdown fences.`;
 }
 
 // ──────────────────────────────────────────────────────────────
+//  PROCESS STEP — single dispatcher for route handlers
+// ──────────────────────────────────────────────────────────────
+export async function processStep(stepName, answer, existingContext) {
+  switch (stepName) {
+    case 'identity':
+      return await refineIdentity(answer);
+    case 'people':
+      return await refinePeople(answer, existingContext);
+    case 'projects':
+      return await refineProjects(answer, existingContext);
+    case 'tools':
+      return await refineTools(answer, existingContext);
+    case 'clients':
+      return await refineClients(answer, existingContext);
+    case 'preferences':
+      return await refinePreferences(answer, existingContext);
+    case 'glossary':
+      return await refineGlossary(answer, existingContext);
+    case 'review':
+      return {};
+    default:
+      throw new Error(`Unknown step: ${stepName}`);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
 //  HELPERS
 // ──────────────────────────────────────────────────────────────
 function parseJSON(text) {
@@ -247,7 +295,7 @@ function parseJSON(text) {
   try {
     return JSON.parse(cleaned);
   } catch (e) {
-    console.error('Failed to parse Gemini JSON:', cleaned.substring(0, 300));
+    console.error('Failed to parse Gemini JSON:', cleaned.substring(0, 500));
     throw new Error('Failed to parse AI response. Please try again.');
   }
 }

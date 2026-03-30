@@ -4,7 +4,7 @@ import { PRESETS } from '../utils/presets';
 
 
 export default function IdentityStep() {
-  const { sessionId, answers, saveAnswer, submitAndPoll, importProfile, nextStep, setLoading, setLoadingMessage, setError } = useSession();
+  const { sessionId, answers, saveAnswer, submitStep, importProfile, nextStep, setLoading, setLoadingMessage, setError } = useSession();
   
   const saved = answers.identity || {};
   const [name, setName] = useState(saved.name || '');
@@ -65,7 +65,7 @@ export default function IdentityStep() {
     const answer = { name, role, company, location, claudeUsage, devLevel, bio };
 
     try {
-      await submitAndPoll(0, answer);
+      await submitStep(0, answer);
       nextStep();
     } catch (err) {
       setError(err.message);

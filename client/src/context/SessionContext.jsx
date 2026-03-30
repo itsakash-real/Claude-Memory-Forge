@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { api, pollJobUntilDone } from '../services/api';
+import { api } from '../services/api';
 
 const SessionContext = createContext(null);
 
@@ -41,28 +41,15 @@ export function SessionProvider({ children }) {
 
   const clearError = useCallback(() => setError(null), []);
 
-  // Submit an answer: enqueue job → poll until done
-  const submitAndPoll = useCallback(async (stepIndex, answer) => {
+  // Submit an answer: call Gemini synchronously, get result back
+  const submitStep = useCallback(async (stepIndex, answer) => {
     if (!sessionId) throw new Error('No active session');
     setLoading(true);
-    setLoadingMessage('Queuing your request...');
+    setLoadingMessage(`Generating your ${STEP_NAMES[stepIndex]} files with AI...`);
     try {
-      // Enqueue job on the server
-      const { jobId, stepName } = await api.submitAnswer(sessionId, stepIndex, answer);
-
-      setLoadingMessage(`AI is generating your ${stepName} files...`);
-
-      // Poll until the worker finishes
-      await pollJobUntilDone(sessionId, jobId, {
-        intervalMs: 3000,
-        onStateChange: (state) => {
-          if (state === 'active') setLoadingMessage('AI is actively generating your files...');
-          if (state === 'waiting') setLoadingMessage('Job is queued, waiting to start...');
-        }
-      });
-
+      const result = await api.submitAnswer(sessionId, stepIndex, answer);
       saveAnswer(STEP_NAMES[stepIndex], answer);
-      return { success: true };
+      return result;
     } catch (err) {
       throw err;
     } finally {
@@ -71,7 +58,7 @@ export function SessionProvider({ children }) {
     }
   }, [sessionId, saveAnswer]);
 
-  // Import full profile (bulk submit without API key)
+  // Import full profile (bulk submit)
   const importProfile = useCallback(async (profileData) => {
     if (!sessionId) throw new Error('No active session to import into.');
     setLoading(true);
@@ -80,8 +67,8 @@ export function SessionProvider({ children }) {
       for (let i = 0; i < STEP_NAMES.length - 1; i++) {
         const step = STEP_NAMES[i];
         if (profileData[step]) {
-          const { jobId } = await api.submitAnswer(sessionId, i, profileData[step]);
-          await pollJobUntilDone(sessionId, jobId, { intervalMs: 3000 });
+          setLoadingMessage(`Generating ${STEP_LABELS[i]} files...`);
+          await api.submitAnswer(sessionId, i, profileData[step]);
         }
       }
       setAnswers(profileData);
@@ -89,13 +76,14 @@ export function SessionProvider({ children }) {
       throw new Error('Failed to import profile: ' + err.message);
     } finally {
       setLoading(false);
+      setLoadingMessage('');
     }
   }, [sessionId]);
 
   const value = {
     sessionId, setSessionId,
     currentStep, setCurrentStep,
-    answers, saveAnswer, submitAndPoll, importProfile,
+    answers, saveAnswer, setAnswers, submitStep, importProfile,
     refinedKeys, setRefinedKeys,
     loading, setLoading,
     loadingMessage, setLoadingMessage,

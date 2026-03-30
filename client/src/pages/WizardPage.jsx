@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { api } from '../services/api';
@@ -22,18 +22,57 @@ const STEP_COMPONENTS = [
 
 export default function WizardPage() {
   const navigate = useNavigate();
-  const { sessionId, setSessionId, currentStep, loading, loadingMessage, error, clearError } = useSession();
+  const { sessionId, setSessionId, currentStep, setAnswers, setCurrentStep, loading, loadingMessage, error, clearError } = useSession();
+  const [restoring, setRestoring] = useState(true);
 
   useEffect(() => {
-    if (!sessionId) {
-      // Auto-start session if came directly to /wizard
-      api.startSession()
-        .then(s => setSessionId(s.sessionId))
-        .catch(() => navigate('/'));
-    }
-  }, [sessionId, setSessionId, navigate]);
+    let isMounted = true;
+    async function initSession() {
+      try {
+        let activeSessionId = sessionId;
+        
+        if (!activeSessionId) {
+          activeSessionId = localStorage.getItem('claudeforge_sessionId');
+        }
 
-  if (!sessionId) return (
+        if (activeSessionId) {
+          try {
+            const status = await api.getStatus(activeSessionId);
+            if (!isMounted) return;
+            setSessionId(activeSessionId);
+            setAnswers(status.answers || {});
+            if (Object.keys(status.answers || {}).length > 0) {
+               setCurrentStep(status.currentStep || 0);
+            }
+            setRestoring(false);
+            return;
+          } catch (err) {
+            localStorage.removeItem('claudeforge_sessionId');
+            setSessionId(null);
+            activeSessionId = null;
+          }
+        }
+        
+        if (!activeSessionId) {
+          const s = await api.startSession();
+          localStorage.setItem('claudeforge_sessionId', s.sessionId);
+          if (!isMounted) return;
+          setSessionId(s.sessionId);
+          setRestoring(false);
+        }
+      } catch (err) {
+        console.error('Failed to init session:', err);
+        if (isMounted) navigate('/');
+      }
+    }
+    
+    if (restoring) {
+      initSession();
+    }
+    return () => { isMounted = false; };
+  }, [restoring, sessionId, setSessionId, setAnswers, setCurrentStep, navigate]);
+
+  if (restoring || !sessionId) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
       <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid var(--border2)', borderTopColor: 'var(--accent)', animation: 'spin 0.8s linear infinite' }} />
     </div>

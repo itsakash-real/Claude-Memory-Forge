@@ -4,7 +4,7 @@ import { useSession } from '../context/SessionContext';
 const EMPTY_PERSON = { name: '', role: '', company: '', relationship: '', notes: '' };
 
 export default function PeopleStep() {
-  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
+  const { answers, saveAnswer, submitStep, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.people?.people || [];
   const [people, setPeople] = useState(saved.length > 0 ? saved : [{ ...EMPTY_PERSON }]);
@@ -25,7 +25,7 @@ export default function PeopleStep() {
     const validPeople = people.filter(p => p.name.trim());
     const answer = { people: validPeople };
     try {
-      await submitAndPoll(1, answer);
+      await submitStep(1, answer);
       nextStep();
     } catch (err) {
       setError(err.message);

@@ -4,7 +4,7 @@ import { useSession } from '../context/SessionContext';
 const EMPTY_CLIENT = { name: '', context: '', industry: '', relationship: '' };
 
 export default function ClientsStep() {
-  const { answers, saveAnswer, submitAndPoll, nextStep, prevStep, setError } = useSession();
+  const { answers, saveAnswer, submitStep, nextStep, prevStep, setError } = useSession();
   
   const saved = answers.clients?.clients || [];
   const [clients, setClients] = useState(saved.length > 0 ? saved : []);
@@ -31,7 +31,7 @@ export default function ClientsStep() {
     const validClients = clients.filter(c => c.name.trim());
     const answer = { clients: validClients };
     try {
-      await submitAndPoll(4, answer);
+      await submitStep(4, answer);
       nextStep();
     } catch (err) {
       setError(err.message);
