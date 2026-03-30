@@ -13,6 +13,7 @@ export function getConnection() {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     lazyConnect: true,
+    family: 0, // Force IPv4 to prevent Upstash DNS resolution connection resets on Vercel
   });
   _connection.on('error', (err) => console.error('[Redis] IORedis error:', err.message));
   _connection.on('connect', () => console.log('[Redis] IORedis connected.'));
